@@ -31,7 +31,7 @@ spec:
     {{- end }}
       containers:
         - name: socketio
-          args:
+          command:
             - node
             - /home/frappe/frappe-bench/apps/frappe/socketio.js
           {{- if .Values.socketio.envVars }}

@@ -23,4 +23,4 @@ description: Kubernetes Helm Chart for the latest stable ERPNext branch
 icon: https://raw.githubusercontent.com/frappe/erpnext/develop/erpnext/public/images/erpnext-logo.png
 name: erpnext
 type: application
-version: 7.1.255
+version: 7.2.255
