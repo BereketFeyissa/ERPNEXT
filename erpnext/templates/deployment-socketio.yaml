@@ -31,9 +31,9 @@ spec:
     {{- end }}
       containers:
         - name: socketio
-          command: ["bash", "-lc"]
+          command: ["node"]
           args:
-            - node /home/frappe/frappe-bench/apps/frappe/socketio.js
+            - /home/frappe/frappe-bench/apps/frappe/socketio.js
           {{- if .Values.socketio.envVars }}
           env:
             {{- toYaml .Values.socketio.envVars | nindent 12 }}
