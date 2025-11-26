@@ -264,6 +264,10 @@ persistence:
     - ReadWriteMany
     # annotations to attach to the PersistentVolumeClaim created for worker
     annotations: {}
+    # existingPV: when set to a PV name, the generated PVC will include spec.volumeName
+    # and will bind to that existing PersistentVolume. This bypasses the requirement for
+    # storageClass when used. Leave empty to create a normal PVC.
+    existingPV: ""
   logs:
     # Container based log search and analytics stack recommended
     enabled: false
@@ -274,6 +278,10 @@ persistence:
     - ReadWriteMany
     # annotations to attach to the PersistentVolumeClaim created for logs
     annotations: {}
+    # existingPV: when set to a PV name, the generated PVC will include spec.volumeName
+    # and will bind to that existing PersistentVolume. This bypasses the requirement for
+    # storageClass when used. Leave empty to create a normal PVC.
+    existingPV: ""
 
 # Ingress
 ingress:

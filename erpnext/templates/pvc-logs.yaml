@@ -16,5 +16,10 @@ spec:
   resources:
     requests:
       storage: {{ .Values.persistence.logs.size | quote }}
+  {{- if not .Values.persistence.logs.existingPV }}
   storageClassName: {{ required "A valid .persistence.logs.storageClass entry required!" .Values.persistence.logs.storageClass }}
+  {{- end }}
+  {{- if .Values.persistence.logs.existingPV }}
+  volumeName: {{ .Values.persistence.logs.existingPV | quote }}
+  {{- end }}
 {{- end }}

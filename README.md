@@ -19,7 +19,10 @@ kubectl create namespace erpnext
 helm repo add frappe https://helm.erpnext.com
 helm upgrade --install frappe-bench --namespace erpnext frappe/erpnext --set persistence.worker.storageClass=nfs
 
-Note: this clone adds support for attaching annotations to the PersistentVolumeClaims created by the chart. Use `persistence.worker.annotations` and `persistence.logs.annotations` to provide a map of annotations (default is `{}`). This is useful for cloud/provider-specific PVC annotations or features such as binding policies or encryption.
+Note: this fork adds two small enhancements compared to the original chart:
+
+- Support for attaching annotations to PVCs via `persistence.worker.annotations` and `persistence.logs.annotations` (default `{}`). Useful for cloud/provider-specific PVC annotations (e.g., encryption, binding policies).
+- Optional binding to an existing PersistentVolume using `persistence.worker.existingPV` and `persistence.logs.existingPV` (set to the PV name). When `existingPV` is set the generated PVC will include `spec.volumeName` and the template will not require `storageClass`.
 ```
 
 # Contents
@@ -201,10 +204,12 @@ Kubernetes Helm Chart for ERPNext and Frappe Framework Apps.
 | persistence.logs.enabled | bool | `false` |  |
 | persistence.logs.size | string | `"8Gi"` |  |
 | persistence.logs.annotations | object | `{}` | Annotations to attach to the PersistentVolumeClaim created for logs (map of key: value).
+| persistence.logs.existingPV | string | `""` | When set to a PV name, the generated PVC will include `spec.volumeName` and bind to that existing PersistentVolume. Leave empty to create a regular PVC.
 | persistence.worker.accessModes[0] | string | `"ReadWriteMany"` |  |
 | persistence.worker.enabled | bool | `true` |  |
 | persistence.worker.size | string | `"8Gi"` |  |
 | persistence.worker.annotations | object | `{}` | Annotations to attach to the PersistentVolumeClaim created for worker (map of key: value).
+| persistence.worker.existingPV | string | `""` | When set to a PV name, the generated PVC will include `spec.volumeName` and bind to that existing PersistentVolume. Leave empty to create a regular PVC.
 | podSecurityContext.supplementalGroups[0] | int | `1000` |  |
 | postgresql.auth.postgresPassword | string | `"changeit"` |  |
 | postgresql.auth.username | string | `"postgres"` |  |
