@@ -65,7 +65,7 @@ spec:
             {{- end }}
             {{- if .Values.jobs.migrate.enableCacheFlush }}
             echo "Flushing Redis Cache..."
-            python3 << 'EOF'
+            /home/frappe/frappe-bench/env/bin/python << 'EOF'
             import json
             import redis
             try:
