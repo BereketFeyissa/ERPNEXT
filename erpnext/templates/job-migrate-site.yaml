@@ -30,7 +30,8 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["bash", "-c"]
         args:
-          - >
+          - |
+            set -e
             {{- if eq .Values.jobs.migrate.mode "single" }}
             bench --site {{ .Values.jobs.migrate.siteName }} set-maintenance-mode on;
             bench --site {{ .Values.jobs.migrate.siteName }} migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
@@ -62,8 +63,8 @@ spec:
             bench --site {{ . }} set-maintenance-mode off;
             {{- end }}
             {{- end }}
-            {{ ";" }}
             {{- if .Values.jobs.migrate.enableCacheFlush }}
+            echo "Flushing Redis Cache..."
             python3 << 'EOF'
             import json
             import redis
