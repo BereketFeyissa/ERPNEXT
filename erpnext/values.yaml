@@ -400,13 +400,26 @@ jobs:
   migrate:
     # jobName: ""
     enabled: false
-    siteName: "erp.cluster.local"
     skipFailing: false
+    # How to select sites to migrate. Options:
+    # - "single": migrate a single site specified by `siteName` (default)
+    # - "all": iterate over all directories in `sites/` and migrate each site
+    # - "regex": iterate over all sites and migrate those matching `sitesRegex` (Go regex)
+    # - "list": migrate site names listed in `sites`
+    mode: "single"
+    siteName: "erp.cluster.local"
+    # List of site names when mode == "list"
+    sites: []
+      # - "site1.local"
+      # - "site2.local"
+    # Regex to match site names when mode == "regex"
+    sitesRegex: ""
     backoffLimit: 0
     resources: {}
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    annotations: {}
 
   custom:
     enabled: false

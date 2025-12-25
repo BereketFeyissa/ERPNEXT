@@ -9,6 +9,10 @@ metadata:
   {{- end }}
   labels:
     {{- include "erpnext.labels" . | nindent 4 }}
+  {{- with .Values.jobs.migrate.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   backoffLimit: {{ .Values.jobs.migrate.backoffLimit }}
   template:
@@ -27,12 +31,37 @@ spec:
         command: ["bash", "-c"]
         args:
           - >
-            bench --site $(SITE_NAME) set-maintenance-mode on;
-            bench --site $(SITE_NAME) migrate {{ if .Values.jobs.migrate.skipFailing }}--skip-failing{{ end }};
-            bench --site $(SITE_NAME) set-maintenance-mode off;
-        env:
-          - name: "SITE_NAME"
-            value: "{{ .Values.jobs.migrate.siteName }}"
+            {{- if eq .Values.jobs.migrate.mode "single" }}
+            bench --site {{ .Values.jobs.migrate.siteName }} set-maintenance-mode on;
+            bench --site {{ .Values.jobs.migrate.siteName }} migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
+            bench --site {{ .Values.jobs.migrate.siteName }} set-maintenance-mode off;
+            {{- else if eq .Values.jobs.migrate.mode "all" }}
+            for site_dir in sites/*; do
+              if [ -d "$site_dir" ] && [ -f "$site_dir/site_config.json" ]; then
+                site=$(basename "$site_dir");
+                bench --site $site set-maintenance-mode on;
+                bench --site $site migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
+                bench --site $site set-maintenance-mode off;
+              fi;
+            done
+            {{- else if eq .Values.jobs.migrate.mode "regex" }}
+            for site_dir in sites/*; do
+              if [ -d "$site_dir" ] && [ -f "$site_dir/site_config.json" ]; then
+                site=$(basename "$site_dir");
+                if [[ $site =~ "{{ .Values.jobs.migrate.sitesRegex }}" ]]; then
+                  bench --site $site set-maintenance-mode on;
+                  bench --site $site migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
+                  bench --site $site set-maintenance-mode off;
+                fi;
+              fi;
+            done
+            {{- else if eq .Values.jobs.migrate.mode "list" }}
+            {{- range .Values.jobs.migrate.sites }}
+            bench --site {{ . }} set-maintenance-mode on;
+            bench --site {{ . }} migrate{{ if $.Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
+            bench --site {{ . }} set-maintenance-mode off;
+            {{- end }}
+            {{- end }}
         resources:
           {{- toYaml .Values.jobs.migrate.resources | nindent 10 }}
         securityContext:
