@@ -9,6 +9,10 @@ metadata:
   {{- end }}
   labels:
     {{- include "erpnext.labels" . | nindent 4 }}
+  {{- with .Values.jobs.configure.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   backoffLimit: {{ .Values.jobs.configure.backoffLimit }}
   template:

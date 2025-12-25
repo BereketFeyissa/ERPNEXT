@@ -337,6 +337,7 @@ jobs:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    annotations: {}
     envVars: []
     command: []
     args: []
@@ -375,6 +376,22 @@ jobs:
     siteName: "erp.cluster.local"
     withFiles: true
     backoffLimit: 0
+    # Optional schedule for running backup as a CronJob (Cron expression). When set,
+    # the template will render a CronJob instead of a one-shot Job.
+    schedule: ""
+    # Optional history limits when using CronJob
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    # How to select sites to back up. Options:
+    # - "single": backup a single site specified by `siteName` (default)
+    # - "all": iterate over all directories in `sites/` and back up each site
+    # - "regex": iterate over all sites and back up those matching `sitesRegex` (Go regex)
+    # - "list": back up site names listed in `sites`
+    mode: "single"
+    # List of site names when mode == "list"
+    sites: []
+    # Regex to match site names when mode == "regex"
+    sitesRegex: ""
     resources: {}
     nodeSelector: {}
     tolerations: []
