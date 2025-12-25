@@ -414,6 +414,8 @@ jobs:
       # - "site2.local"
     # Regex to match site names when mode == "regex"
     sitesRegex: ""
+    # Enable Redis cache flushing after migration
+    enableCacheFlush: false
     backoffLimit: 0
     resources: {}
     nodeSelector: {}
