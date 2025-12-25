@@ -62,6 +62,7 @@ spec:
             bench --site {{ . }} set-maintenance-mode off;
             {{- end }}
             {{- end }}
+            {{ ";" }}
             {{- if .Values.jobs.migrate.enableCacheFlush }}
             python3 -c "
             import json
