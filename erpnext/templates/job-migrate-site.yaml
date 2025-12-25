@@ -31,26 +31,6 @@ spec:
         command: ["bash", "-c"]
         args:
           - >
-            {{- if .Values.jobs.migrate.enableCacheFlush }}
-            pip install redis --quiet --disable-pip-version-check || echo "Could not install redis package"
-            REDIS_CACHE_URL=$(python3 -c "import json; config = json.load(open('sites/common_site_config.json')); print(config.get('redis_cache', ''))" 2>/dev/null || echo "")
-            REDIS_QUEUE_URL=$(python3 -c "import json; config = json.load(open('sites/common_site_config.json')); print(config.get('redis_queue', ''))" 2>/dev/null || echo "")
-            REDIS_SOCKETIO_URL=$(python3 -c "import json; config = json.load(open('sites/common_site_config.json')); print(config.get('redis_socketio', ''))" 2>/dev/null || echo "")
-            flush_redis() {
-              local url=$1
-              if [ -n "$url" ]; then
-                python3 -c "
-            try:
-                import redis
-                r = redis.from_url('$url')
-                r.flushall()
-            except Exception as e:
-                print(f'Failed to flush $url: {e}', file=sys.stderr)
-            " 2>/dev/null || echo "Failed to flush $url"
-              fi
-            }
-            trap "flush_redis '$REDIS_CACHE_URL'; flush_redis '$REDIS_QUEUE_URL'; flush_redis '$REDIS_SOCKETIO_URL'; pip uninstall redis -y --quiet || true" EXIT
-            {{- end }}
             {{- if eq .Values.jobs.migrate.mode "single" }}
             bench --site {{ .Values.jobs.migrate.siteName }} set-maintenance-mode on;
             bench --site {{ .Values.jobs.migrate.siteName }} migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
@@ -81,6 +61,24 @@ spec:
             bench --site {{ . }} migrate{{ if $.Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
             bench --site {{ . }} set-maintenance-mode off;
             {{- end }}
+            {{- end }}
+            {{- if .Values.jobs.migrate.enableCacheFlush }}
+            python3 -c "
+            import json
+            import redis
+            try:
+                with open('sites/common_site_config.json') as f:
+                    config = json.load(f)
+                redis_url = config.get('redis_cache')
+                if redis_url:
+                    r = redis.from_url(redis_url)
+                    r.flushall()
+                    print('Redis cache flushed')
+                else:
+                    print('No redis_cache in config')
+            except Exception as e:
+                print(f'Error flushing Redis: {e}')
+            "
             {{- end }}
         resources:
           {{- toYaml .Values.jobs.migrate.resources | nindent 10 }}
