@@ -1,4 +1,107 @@
 {{- if .Values.jobs.backup.enabled }}
+{{- if .Values.jobs.backup.schedule }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  {{- if .Values.jobs.backup.jobName }}
+  name: {{ .Values.jobs.backup.jobName }}
+  {{- else }}
+  name: {{ template "erpnext.fullname" . }}-backup
+  {{- end }}
+  labels:
+    {{- include "erpnext.labels" . | nindent 4 }}
+spec:
+  schedule: "{{ .Values.jobs.backup.schedule }}"
+  {{- if .Values.jobs.backup.successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ .Values.jobs.backup.successfulJobsHistoryLimit }}
+  {{- end }}
+  {{- if .Values.jobs.backup.failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.jobs.backup.failedJobsHistoryLimit }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.jobs.backup.backoffLimit }}
+      template:
+        spec:
+        {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+          serviceAccountName: {{ template "erpnext.serviceAccountName" $ }}
+          securityContext:
+            {{- toYaml $.Values.podSecurityContext | nindent 12 }}
+          containers:
+          - name: backup
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command: ["bash", "-c"]
+            args:
+              - >
+                {{- if eq .Values.jobs.backup.mode "single" }}
+                  bench --site=$(SITE_NAME){{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}{{- end }};
+                {{- else if eq .Values.jobs.backup.mode "all" }}
+                  for d in /home/frappe/frappe-bench/sites/*; do SITE=$(basename "$d"); bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}{{- end }};
+                  done
+                {{- else if eq .Values.jobs.backup.mode "regex" }}
+                  for d in /home/frappe/frappe-bench/sites/*; do SITE=$(basename "$d"); if echo "$SITE" | grep -E '{{ .Values.jobs.backup.sitesRegex }}' >/dev/null; then bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}{{- end }};
+                  fi; done
+                {{- else if eq .Values.jobs.backup.mode "list" }}
+                  for SITE in {{- range $s := .Values.jobs.backup.sites }}'{{ $s }}' {{- end }}; do SITE=${SITE//\'/}; bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}{{- end }};
+                  done
+                {{- else }}
+                  echo "Invalid backup mode: {{ .Values.jobs.backup.mode }}" && exit 1
+                {{- end }}
+            # env:
+            #   - name: "SITE_NAME"
+            #     value: "{{ .Values.jobs.backup.siteName }}"
+            resources:
+              {{- toYaml .Values.jobs.backup.resources | nindent 14 }}
+            securityContext:
+              {{- toYaml $.Values.securityContext | nindent 14 }}
+            volumeMounts:
+              - name: sites-dir
+                mountPath: /home/frappe/frappe-bench/sites
+              - name: logs
+                mountPath: /home/frappe/frappe-bench/logs
+          restartPolicy: Never
+          volumes:
+            - name: sites-dir
+              {{- if .Values.persistence.worker.enabled }}
+              persistentVolumeClaim:
+                {{- if .Values.persistence.worker.existingClaim }}
+                claimName: {{ .Values.persistence.worker.existingClaim }}
+                {{- else }}
+                claimName: {{ template "erpnext.fullname" . }}
+                {{- end }}
+                readOnly: false
+              {{- else }}
+              emptyDir: {}
+              {{- end }}
+            - name: logs
+              {{- if .Values.persistence.logs.enabled }}
+              persistentVolumeClaim:
+                {{- if .Values.persistence.logs.existingClaim }}
+                claimName: {{ .Values.persistence.logs.existingClaim }}
+                {{- else }}
+                claimName: {{ template "erpnext.fullname" . }}-logs
+                {{- end }}
+                readOnly: false
+              {{- else }}
+              emptyDir: {}
+              {{- end }}
+          {{- with .Values.jobs.backup.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.jobs.backup.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.jobs.backup.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- else }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -27,12 +130,17 @@ spec:
         command: ["bash", "-c"]
         args:
           - >
-            bench --site=$(SITE_NAME)
-          {{- if .Values.jobs.backup.withFiles }}
-            backup --with-files;
-          {{- else }}
-            backup;
-          {{- end }}
+            {{- if eq .Values.jobs.backup.mode "single" }}
+              bench --site=$(SITE_NAME){{- if .Values.jobs.backup.withFiles }} backup --with-files;{{- else }} backup;{{- end }}
+            {{- else if eq .Values.jobs.backup.mode "all" }}
+              for d in /home/frappe/frappe-bench/sites/*; do SITE=$(basename "$d"); bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files;{{- else }} backup;{{- end }}; done
+            {{- else if eq .Values.jobs.backup.mode "regex" }}
+              for d in /home/frappe/frappe-bench/sites/*; do SITE=$(basename "$d"); if echo "$SITE" | grep -E '{{ .Values.jobs.backup.sitesRegex }}' >/dev/null; then bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files;{{- else }} backup;{{- end }}; fi; done
+            {{- else if eq .Values.jobs.backup.mode "list" }}
+              for SITE in {{- range $s := .Values.jobs.backup.sites }}'{{ $s }}' {{- end }}; do SITE=${SITE//\'/}; bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files;{{- else }} backup;{{- end }}; done
+            {{- else }}
+              echo "Invalid backup mode: {{ .Values.jobs.backup.mode }}" && exit 1
+            {{- end }}
         env:
           - name: "SITE_NAME"
             value: "{{ .Values.jobs.backup.siteName }}"
@@ -83,4 +191,5 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}
 {{- end }}
