@@ -393,11 +393,13 @@ jobs:
     # Regex to match site names when mode == "regex"
     sitesRegex: ""
     # Optional base path to save backup files.  The job will create a
-    # subdirectory named after each site (dots replaced with underscores)
-    # and put timestamped backup files inside that site folder.  e.g.
-    #   /backups/test_com/20260309_070013-test_com-*
+    # subdirectory named after each site (dots replaced with underscores),
+    # then a timestamped subdirectory for each backup run, placing files inside.  e.g.
+    #   /backups/test_com/20260309_070013-test_com/20260309_070013-test_com-*
     # Leave empty to use default bench behavior.
-    backupPath: "/home/bereket"
+    backupPath: ""
+    # Optional: compress private and public backup files (adds --compress to bench backup)
+    compress: false
     resources: {}
     nodeSelector: {}
     tolerations: []
