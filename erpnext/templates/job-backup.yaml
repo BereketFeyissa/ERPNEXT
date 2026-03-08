@@ -36,7 +36,7 @@ spec:
             imagePullPolicy: {{ .Values.image.pullPolicy }}
             command: ["bash", "-c"]
             args:
-              - >
+              - |
                 {{- if eq .Values.jobs.backup.mode "single" }}
                   # single site comes from env variable
                   SITE=$SITE_NAME
