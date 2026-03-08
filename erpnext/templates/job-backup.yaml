@@ -39,6 +39,7 @@ spec:
               - |
                 {{- if eq .Values.jobs.backup.mode "single" }}
                   # single site comes from env variable
+                  set -e
                   SITE=$SITE_NAME
                   SAFE_SITE=$(echo "$SITE" | tr '.' '_')
                   TIMESTAMP=$(date +%d_%m_%Y-%H_%M_%S)
@@ -53,6 +54,7 @@ spec:
                   {{- end }}
                 {{- else if eq .Values.jobs.backup.mode "all" }}
                   # backup all sites
+                  set -e
                   for d in /home/frappe/frappe-bench/sites/*; do
                     # only consider directories that look like Frappe sites
                     if [ -d "$d" ] && [ -f "$d/site_config.json" ]; then
@@ -72,6 +74,7 @@ spec:
                   done
                 {{- else if eq .Values.jobs.backup.mode "regex" }}
                 # backup sites based on regex expression
+                  set -e
                   for d in /home/frappe/frappe-bench/sites/*; do
                     if [ -d "$d" ] && [ -f "$d/site_config.json" ]; then
                       SITE=$(basename "$d");
@@ -92,6 +95,7 @@ spec:
                   done
                 {{- else if eq .Values.jobs.backup.mode "list" }}
                 # backup sites based on list
+                  set -e
                   for SITE in {{- range $s := .Values.jobs.backup.sites }}'{{ $s }}' {{- end }}; do SITE=${SITE//\'/}; bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.compress }} --compress{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}{{- end }};
                   EXIT=$?;
                   {{- if (gt ($.Values.jobs.backup.olderThan | int) 0) }}
