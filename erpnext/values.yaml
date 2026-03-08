@@ -400,6 +400,8 @@ jobs:
     backupPath: ""
     # Optional: compress private and public backup files (adds --compress to bench backup)
     compress: false
+    # Optional: delete backup files older than this many minutes (adds find ... -mmin +<olderThan> -exec rm -rf {} \; to job command)
+    olderThan: 0
     resources: {}
     nodeSelector: {}
     tolerations: []

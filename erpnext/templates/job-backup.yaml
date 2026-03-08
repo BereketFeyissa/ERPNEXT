@@ -41,44 +41,73 @@ spec:
                   # single site comes from env variable
                   SITE=$SITE_NAME
                   SAFE_SITE=$(echo "$SITE" | tr '.' '_')
-                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                  TIMESTAMP=$(date +%d_%m_%Y-%H_%M_%S)
                   BACKUP_DIR="{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE/${TIMESTAMP}-${SAFE_SITE}"
                   mkdir -p "$BACKUP_DIR"
                   bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.compress }} --compress{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path="$BACKUP_DIR"{{- end }};
+                  EXIT=$?;
+                  {{- if (gt ($.Values.jobs.backup.olderThan | int) 0) }}
+                  if [ $EXIT -eq 0 ]; then
+                    find "{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE" -maxdepth 1 -type d -mmin +{{ .Values.jobs.backup.olderThan }} -exec rm -rf {} \;
+                  fi;
+                  {{- end }}
                 {{- else if eq .Values.jobs.backup.mode "all" }}
+                  # backup all sites
                   for d in /home/frappe/frappe-bench/sites/*; do
                     # only consider directories that look like Frappe sites
                     if [ -d "$d" ] && [ -f "$d/site_config.json" ]; then
                       SITE=$(basename "$d");
                       SAFE_SITE=$(echo "$SITE" | tr '.' '_')
-                      TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                      TIMESTAMP=$(date +%d_%m_%Y-%H_%M_%S)
                       BACKUP_DIR="{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE/${TIMESTAMP}-${SAFE_SITE}"
                       mkdir -p "$BACKUP_DIR"
                       bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.compress }} --compress{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path="$BACKUP_DIR"{{- end }};
                     fi;
+                    EXIT=$?;
+                    {{- if (gt ($.Values.jobs.backup.olderThan | int) 0) }}
+                    if [ $EXIT -eq 0 ]; then
+                      find "{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE" -maxdepth 1 -type d -mmin +{{ .Values.jobs.backup.olderThan }} -exec rm -rf {} \;
+                    fi;
+                    {{- end }}
                   done
                 {{- else if eq .Values.jobs.backup.mode "regex" }}
+                # backup sites based on regex expression
                   for d in /home/frappe/frappe-bench/sites/*; do
                     if [ -d "$d" ] && [ -f "$d/site_config.json" ]; then
                       SITE=$(basename "$d");
                       if echo "$SITE" | grep -E '{{ .Values.jobs.backup.sitesRegex }}' >/dev/null; then
                         SAFE_SITE=$(echo "$SITE" | tr '.' '_')
-                        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                        TIMESTAMP=$(date +%d_%m_%Y-%H_%M_%S)
                         BACKUP_DIR="{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE/${TIMESTAMP}-${SAFE_SITE}"
                         mkdir -p "$BACKUP_DIR"
                         bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.compress }} --compress{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path="$BACKUP_DIR"{{- end }};
                       fi;
                     fi;
+                    EXIT=$?;
+                    {{- if (gt ($.Values.jobs.backup.olderThan | int) 0) }}
+                    if [ $EXIT -eq 0 ]; then
+                      find "{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE" -maxdepth 1 -type d -mmin +{{ .Values.jobs.backup.olderThan }} -exec rm -rf {} \;
+                    fi;
+                    {{- end }}
                   done
                 {{- else if eq .Values.jobs.backup.mode "list" }}
+                # backup sites based on list
                   for SITE in {{- range $s := .Values.jobs.backup.sites }}'{{ $s }}' {{- end }}; do SITE=${SITE//\'/}; bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.compress }} --compress{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}{{- end }};
+                  EXIT=$?;
+                  {{- if (gt ($.Values.jobs.backup.olderThan | int) 0) }}
+                  if [ $EXIT -eq 0 ]; then
+                    find "{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE" -maxdepth 1 -type d -mmin +{{ .Values.jobs.backup.olderThan }} -exec rm -rf {} \;
+                  fi;
+                  {{- end }}
                   done
                 {{- else }}
                   echo "Invalid backup mode: {{ .Values.jobs.backup.mode }}" && exit 1
                 {{- end }}
-            # env:
-            #   - name: "SITE_NAME"
-            #     value: "{{ .Values.jobs.backup.siteName }}"
+          {{- if eq .Values.jobs.backup.mode "single" }}
+            env:
+              - name: "SITE_NAME"
+                value: "{{ .Values.jobs.backup.siteName }}"
+          {{- end }}
             resources:
               {{- toYaml .Values.jobs.backup.resources | nindent 14 }}
             securityContext:
