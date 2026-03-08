@@ -41,14 +41,20 @@ spec:
                   # single site comes from env variable
                   SITE=$SITE_NAME
                   SAFE_SITE=$(echo "$SITE" | tr '.' '_')
-                  bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}/$SAFE_SITE{{- end }};
+                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                  BACKUP_DIR="{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE/${TIMESTAMP}-${SAFE_SITE}"
+                  mkdir -p "$BACKUP_DIR"
+                  bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path="$BACKUP_DIR"{{- end }};
                 {{- else if eq .Values.jobs.backup.mode "all" }}
                   for d in /home/frappe/frappe-bench/sites/*; do
                     # only consider directories that look like Frappe sites
                     if [ -d "$d" ] && [ -f "$d/site_config.json" ]; then
                       SITE=$(basename "$d");
                       SAFE_SITE=$(echo "$SITE" | tr '.' '_')
-                      bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}/$SAFE_SITE{{- end }};
+                      TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                      BACKUP_DIR="{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE/${TIMESTAMP}-${SAFE_SITE}"
+                      mkdir -p "$BACKUP_DIR"
+                      bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path="$BACKUP_DIR"{{- end }};
                     fi;
                   done
                 {{- else if eq .Values.jobs.backup.mode "regex" }}
@@ -57,7 +63,10 @@ spec:
                       SITE=$(basename "$d");
                       if echo "$SITE" | grep -E '{{ .Values.jobs.backup.sitesRegex }}' >/dev/null; then
                         SAFE_SITE=$(echo "$SITE" | tr '.' '_')
-                        bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path={{ .Values.jobs.backup.backupPath }}/$SAFE_SITE{{- end }};
+                        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                        BACKUP_DIR="{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE/${TIMESTAMP}-${SAFE_SITE}"
+                        mkdir -p "$BACKUP_DIR"
+                        bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path="$BACKUP_DIR"{{- end }};
                       fi;
                     fi;
                   done
