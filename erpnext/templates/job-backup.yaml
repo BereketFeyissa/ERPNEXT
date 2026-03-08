@@ -62,13 +62,13 @@ spec:
                       BACKUP_DIR="{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE/${TIMESTAMP}-${SAFE_SITE}"
                       mkdir -p "$BACKUP_DIR"
                       bench --site=$SITE{{- if .Values.jobs.backup.withFiles }} backup --with-files{{- else }} backup{{- end }}{{- if .Values.jobs.backup.compress }} --compress{{- end }}{{- if .Values.jobs.backup.backupPath }} --backup-path="$BACKUP_DIR"{{- end }};
+                      EXIT=$?;
+                      {{- if (gt ($.Values.jobs.backup.olderThan | int) 0) }}
+                      if [ $EXIT -eq 0 ]; then
+                        find "{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE" -maxdepth 1 -type d -mmin +{{ .Values.jobs.backup.olderThan }} -exec rm -rf {} \;
+                      fi;
+                      {{- end }}
                     fi;
-                    EXIT=$?;
-                    {{- if (gt ($.Values.jobs.backup.olderThan | int) 0) }}
-                    if [ $EXIT -eq 0 ]; then
-                      find "{{ .Values.jobs.backup.backupPath }}/$SAFE_SITE" -maxdepth 1 -type d -mmin +{{ .Values.jobs.backup.olderThan }} -exec rm -rf {} \;
-                    fi;
-                    {{- end }}
                   done
                 {{- else if eq .Values.jobs.backup.mode "regex" }}
                 # backup sites based on regex expression
