@@ -403,6 +403,7 @@ jobs:
     # Optional: delete backup files older than this many minutes (adds find ... -mmin +<olderThan> -exec rm -rf {} \; to job command)
     olderThan: 0
     resources: {}
+    annotations: {}
     nodeSelector: {}
     tolerations: []
     affinity: {}

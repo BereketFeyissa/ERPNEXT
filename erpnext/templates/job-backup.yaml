@@ -10,6 +10,10 @@ metadata:
   {{- end }}
   labels:
     {{- include "erpnext.labels" . | nindent 4 }}
+  {{- with .Values.jobs.backup.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   schedule: "{{ .Values.jobs.backup.schedule }}"
   {{- if .Values.jobs.backup.successfulJobsHistoryLimit }}
