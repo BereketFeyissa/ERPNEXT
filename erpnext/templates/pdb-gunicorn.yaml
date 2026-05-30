@@ -1,0 +1,19 @@
+{{- if .Values.worker.gunicorn.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "erpnext.fullname" . }}-gunicorn
+  labels:
+    {{- include "erpnext.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.worker.gunicorn.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.worker.gunicorn.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if .Values.worker.gunicorn.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.worker.gunicorn.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "erpnext.name" . }}-gunicorn
+      app.kubernetes.io/instance: {{ .Release.Name }}-gunicorn
+{{- end }}

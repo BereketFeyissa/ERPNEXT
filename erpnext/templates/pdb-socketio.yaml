@@ -1,0 +1,19 @@
+{{- if .Values.socketio.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "erpnext.fullname" . }}-socketio
+  labels:
+    {{- include "erpnext.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.socketio.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.socketio.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if .Values.socketio.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.socketio.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "erpnext.name" . }}-socketio
+      app.kubernetes.io/instance: {{ .Release.Name }}-socketio
+{{- end }}

@@ -1,0 +1,19 @@
+{{- if .Values.nginx.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "erpnext.fullname" . }}-nginx
+  labels:
+    {{- include "erpnext.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.nginx.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.nginx.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if .Values.nginx.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.nginx.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "erpnext.name" . }}-nginx
+      app.kubernetes.io/instance: {{ .Release.Name }}-nginx
+{{- end }}

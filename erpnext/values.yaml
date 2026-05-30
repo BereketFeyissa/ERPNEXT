@@ -64,6 +64,10 @@ nginx:
   envVars: []
   initContainers: []
   sidecars: []
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    # maxUnavailable: 1
 
 worker:
   gunicorn:
@@ -95,6 +99,10 @@ worker:
     envVars: []
     initContainers: []
     sidecars: []
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      # maxUnavailable: 1
 
   default:
     replicaCount: 1
@@ -117,6 +125,10 @@ worker:
     envVars: []
     initContainers: []
     sidecars: []
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      # maxUnavailable: 1
 
   short:
     replicaCount: 1
@@ -139,6 +151,10 @@ worker:
     envVars: []
     initContainers: []
     sidecars: []
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      # maxUnavailable: 1
 
   long:
     replicaCount: 1
@@ -161,6 +177,10 @@ worker:
     envVars: []
     initContainers: []
     sidecars: []
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      # maxUnavailable: 1
 
   scheduler:
     replicaCount: 1
@@ -177,6 +197,10 @@ worker:
     envVars: []
     initContainers: []
     sidecars: []
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      # maxUnavailable: 1
 
 
   # Custom topologySpreadConstraints (uncomment and modify to override defaults)
@@ -253,6 +277,10 @@ socketio:
   envVars: []
   initContainers: []
   sidecars: []
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    # maxUnavailable: 1
 
 persistence:
   worker:
