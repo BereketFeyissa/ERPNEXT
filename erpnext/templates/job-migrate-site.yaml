@@ -42,6 +42,7 @@ spec:
               {{- include "erpnext.migrate.siteList" . | nindent 14 }}
             }
             list_sites > /tmp/sites.txt
+            : > /tmp/ok.txt
             : > /tmp/failed.txt
             echo "Migrating $(wc -l < /tmp/sites.txt) site(s), {{ $parallelism }} at a time"
 
@@ -54,31 +55,45 @@ spec:
                 && bench --site "$site" migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }} \
                 && bench --site "$site" set-maintenance-mode off; } 2>&1 | sed -u "s|^|[$site] |"; then
                 echo "[OK] $site"
+                echo "$site" >> /tmp/ok.txt
               else
                 echo "[FAILED] $site (left in maintenance mode)"
                 echo "$site" >> /tmp/failed.txt
               fi
             }
             export -f migrate_site
-            exit_code=0
+
+            # Failures that are not a single site's migration, kept for the summary.
+            other_failures=()
+            record_failure() { echo "[FAILED] $1"; other_failures+=("$1"); }
+
             # Not left to set -e: a worker killed mid-migration must not skip the cache clear below.
             xargs -r -P {{ $parallelism }} -I{} bash -c 'migrate_site "$1"' _ {} < /tmp/sites.txt \
-              || { echo "[FAILED] migration workers (xargs exit code $?)"; exit_code=1; }
+              || record_failure "migration workers (xargs exit code $?)"
             {{- if .Values.jobs.migrate.enableCacheFlush }}
             # Both commands always run, whatever the migration result or the other command's result.
-            # A failure fails the job, but only after the migration summary below.
+            # A failure fails the job, but only after the summary below.
             echo "Clearing website cache and cache for all sites..."
             bench --site all clear-website-cache \
-              || { echo "[FAILED] bench --site all clear-website-cache (exit code $?)"; exit_code=1; }
+              || record_failure "bench --site all clear-website-cache (exit code $?)"
             bench --site all clear-cache \
-              || { echo "[FAILED] bench --site all clear-cache (exit code $?)"; exit_code=1; }
+              || record_failure "bench --site all clear-cache (exit code $?)"
             {{- end }}
-            if [ -s /tmp/failed.txt ]; then
-              echo "Migration failed for $(wc -l < /tmp/failed.txt) site(s):"
-              cat /tmp/failed.txt
-              exit_code=1
+
+            # Prints "  <label>: N site(s): a b c" for a non-empty newline-separated site list.
+            print_sites() {
+              if [ -n "$2" ]; then echo "  $1: $(wc -l <<< "$2") site(s): $(paste -sd ' ' <<< "$2")"; fi
+            }
+            # Sites neither OK nor failed: their worker was killed, or xargs stopped before starting them.
+            not_finished=$(grep -vxF -f /tmp/ok.txt -f /tmp/failed.txt /tmp/sites.txt || true)
+            echo "Summary: $(wc -l < /tmp/ok.txt) of $(wc -l < /tmp/sites.txt) site(s) migrated"
+            print_sites "Migrated" "$(cat /tmp/ok.txt)"
+            print_sites "Migration failed, left in maintenance mode" "$(cat /tmp/failed.txt)"
+            print_sites "Did not finish, check maintenance mode" "$not_finished"
+            for failure in "${other_failures[@]}"; do echo "  Failed: $failure"; done
+            if [ -s /tmp/failed.txt ] || [ -n "$not_finished" ] || [ ${#other_failures[@]} -gt 0 ]; then
+              exit 1
             fi
-            exit $exit_code
         resources:
           {{- toYaml .Values.jobs.migrate.resources | nindent 10 }}
         securityContext:
