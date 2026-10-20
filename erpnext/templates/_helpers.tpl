@@ -96,3 +96,32 @@ Gets the redis cache host name
 {{- define "erpnext.redisCacheHost" -}}
 {{ .Values.redisCacheHost }}
 {{- end -}}
+
+{{/*
+Bash snippet that prints the sites selected by jobs.migrate (mode/siteName/sites/sitesRegex), one per line.
+Fails the render when the mode is unknown or the value it needs is empty.
+*/}}
+{{- define "erpnext.migrate.siteList" -}}
+{{- if eq .Values.jobs.migrate.mode "single" -}}
+echo {{ required "jobs.migrate.siteName is required when jobs.migrate.mode is \"single\"" .Values.jobs.migrate.siteName | quote }}
+{{- else if eq .Values.jobs.migrate.mode "list" -}}
+{{- if not .Values.jobs.migrate.sites }}{{ fail "jobs.migrate.sites must not be empty when jobs.migrate.mode is \"list\"" }}{{ end -}}
+printf '%s\n'{{ range .Values.jobs.migrate.sites }} {{ . | quote }}{{ end }}
+{{- else if not (has .Values.jobs.migrate.mode (list "all" "regex")) -}}
+{{- fail (printf "jobs.migrate.mode must be one of single, all, regex, list (got %q)" .Values.jobs.migrate.mode) -}}
+{{- else -}}
+{{- if eq .Values.jobs.migrate.mode "regex" -}}
+sites_regex={{ required "jobs.migrate.sitesRegex is required when jobs.migrate.mode is \"regex\"" .Values.jobs.migrate.sitesRegex | quote }}
+{{ end -}}
+for site_dir in sites/*; do
+  if [ -d "$site_dir" ] && [ -f "$site_dir/site_config.json" ]; then
+    site=$(basename "$site_dir")
+    {{- if eq .Values.jobs.migrate.mode "regex" }}
+    if [[ $site =~ $sites_regex ]]; then echo "$site"; fi
+    {{- else }}
+    echo "$site"
+    {{- end }}
+  fi
+done
+{{- end -}}
+{{- end -}}
