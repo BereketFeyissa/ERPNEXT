@@ -1,4 +1,8 @@
 {{- if .Values.jobs.migrate.enabled }}
+{{- $parallelism := int .Values.jobs.migrate.parallelism }}
+{{- if lt $parallelism 1 }}
+{{- fail "jobs.migrate.parallelism must be at least 1" }}
+{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -32,56 +36,49 @@ spec:
         args:
           - |
             set -e
-            {{- if eq .Values.jobs.migrate.mode "single" }}
-            bench --site {{ .Values.jobs.migrate.siteName }} set-maintenance-mode on;
-            bench --site {{ .Values.jobs.migrate.siteName }} migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
-            bench --site {{ .Values.jobs.migrate.siteName }} set-maintenance-mode off;
-            {{- else if eq .Values.jobs.migrate.mode "all" }}
-            for site_dir in sites/*; do
-              if [ -d "$site_dir" ] && [ -f "$site_dir/site_config.json" ]; then
-                site=$(basename "$site_dir");
-                bench --site $site set-maintenance-mode on;
-                bench --site $site migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
-                bench --site $site set-maintenance-mode off;
-              fi;
-            done
-            {{- else if eq .Values.jobs.migrate.mode "regex" }}
-            for site_dir in sites/*; do
-              if [ -d "$site_dir" ] && [ -f "$site_dir/site_config.json" ]; then
-                site=$(basename "$site_dir");
-                if [[ $site =~ "{{ .Values.jobs.migrate.sitesRegex }}" ]]; then
-                  bench --site $site set-maintenance-mode on;
-                  bench --site $site migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
-                  bench --site $site set-maintenance-mode off;
-                fi;
-              fi;
-            done
-            {{- else if eq .Values.jobs.migrate.mode "list" }}
-            {{- range .Values.jobs.migrate.sites }}
-            bench --site {{ . }} set-maintenance-mode on;
-            bench --site {{ . }} migrate{{ if $.Values.jobs.migrate.skipFailing }} --skip-failing{{ end }};
-            bench --site {{ . }} set-maintenance-mode off;
-            {{- end }}
-            {{- end }}
+            # Flush bench output line by line so it reaches the pod log while the migration runs.
+            export PYTHONUNBUFFERED=1
+            list_sites() {
+              {{- include "erpnext.migrate.siteList" . | nindent 14 }}
+            }
+            list_sites > /tmp/sites.txt
+            : > /tmp/failed.txt
+            echo "Migrating $(wc -l < /tmp/sites.txt) site(s), {{ $parallelism }} at a time"
+
+            # Output is streamed live with a [site] prefix. A site whose migration fails
+            # stays in maintenance mode; the others continue.
+            migrate_site() {
+              set -o pipefail
+              local site="$1"
+              if { bench --site "$site" set-maintenance-mode on \
+                && bench --site "$site" migrate{{ if .Values.jobs.migrate.skipFailing }} --skip-failing{{ end }} \
+                && bench --site "$site" set-maintenance-mode off; } 2>&1 | sed -u "s|^|[$site] |"; then
+                echo "[OK] $site"
+              else
+                echo "[FAILED] $site (left in maintenance mode)"
+                echo "$site" >> /tmp/failed.txt
+              fi
+            }
+            export -f migrate_site
+            exit_code=0
+            # Not left to set -e: a worker killed mid-migration must not skip the cache clear below.
+            xargs -r -P {{ $parallelism }} -I{} bash -c 'migrate_site "$1"' _ {} < /tmp/sites.txt \
+              || { echo "[FAILED] migration workers (xargs exit code $?)"; exit_code=1; }
             {{- if .Values.jobs.migrate.enableCacheFlush }}
-            echo "Flushing Redis Cache..."
-            /home/frappe/frappe-bench/env/bin/python << 'EOF'
-            import json
-            import redis
-            try:
-                with open('sites/common_site_config.json') as f:
-                    config = json.load(f)
-                redis_url = config.get('redis_cache')
-                if redis_url:
-                    r = redis.from_url(redis_url)
-                    r.flushall()
-                    print('Redis cache flushed')
-                else:
-                    print('No redis_cache in config')
-            except Exception as e:
-                print(f'Error flushing Redis: {e}')
-            EOF
+            # Both commands always run, whatever the migration result or the other command's result.
+            # A failure fails the job, but only after the migration summary below.
+            echo "Clearing website cache and cache for all sites..."
+            bench --site all clear-website-cache \
+              || { echo "[FAILED] bench --site all clear-website-cache (exit code $?)"; exit_code=1; }
+            bench --site all clear-cache \
+              || { echo "[FAILED] bench --site all clear-cache (exit code $?)"; exit_code=1; }
             {{- end }}
+            if [ -s /tmp/failed.txt ]; then
+              echo "Migration failed for $(wc -l < /tmp/failed.txt) site(s):"
+              cat /tmp/failed.txt
+              exit_code=1
+            fi
+            exit $exit_code
         resources:
           {{- toYaml .Values.jobs.migrate.resources | nindent 10 }}
         securityContext:
